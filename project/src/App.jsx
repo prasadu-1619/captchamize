@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Shield, RefreshCw } from 'lucide-react';
 import { ScratchCaptcha } from './components/ScratchCaptcha';
 import devanagariCodes from './assets/devanagari/codes.json';
+// Using Vite's asset URL import
+import.meta.glob('./assets/devanagari/*.png')
 
 const CAPTCHA_TYPES = ['image', 'devanagari', 'gif', 'scratch'];
 
