@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Shield, RefreshCw, BarChart2 } from 'lucide-react';
+import { Shield, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import { ScratchCaptcha } from './components/ScratchCaptcha';
 import devanagariCodes from './assets/devanagari/codes.json';
-// Using Vite's asset URL import
 
 const CAPTCHA_TYPES = ['image', 'devanagari', 'gif', 'scratch'];
 
@@ -31,21 +30,12 @@ function App() {
   const [verificationResult, setVerificationResult] = useState(null);
   const [isMobile, setIsMobile] = useState(false);
   const [screenshotAttempted, setScreenshotAttempted] = useState(false);
+  const [notification, setNotification] = useState({ show: false, type: '', message: '' });
   const timerRef = useRef(null);
   const modalRef = useRef(null);
   const isInitialMount = useRef(true);
   const overlayRef = useRef(null);
-  
-  // Add stats tracking
-  const [stats, setStats] = useState({
-    total: { success: 0, failure: 0 },
-    image: { success: 0, failure: 0 },
-    devanagari: { success: 0, failure: 0 },
-    gif: { success: 0, failure: 0 },
-    scratch: { success: 0, failure: 0 }
-  });
-  
-  const [showStats, setShowStats] = useState(false);
+  const notificationTimerRef = useRef(null);
 
   // Detect if the device is mobile
   useEffect(() => {
@@ -225,38 +215,38 @@ function App() {
   const loadDevanagariCaptcha = useCallback(() => {
     const randomDevanagari = getRandomDevanagari();
     setCurrentDevanagari(randomDevanagari);
-    // Use absolute path from public folder
-    setImageUrl(`/devanagari/${randomDevanagari.name}.png`);
+    setImageUrl(`/src/assets/devanagari/${randomDevanagari.name}.png`);
   }, [getRandomDevanagari]);
 
-  const updateStats = useCallback((type, isSuccess) => {
-    setStats(prevStats => {
-      const newStats = { ...prevStats };
-      // Update specific type stats
-      newStats[type] = {
-        success: isSuccess ? prevStats[type].success + 1 : prevStats[type].success,
-        failure: !isSuccess ? prevStats[type].failure + 1 : prevStats[type].failure
-      };
-      // Update total stats
-      newStats.total = {
-        success: isSuccess ? prevStats.total.success + 1 : prevStats.total.success,
-        failure: !isSuccess ? prevStats.total.failure + 1 : prevStats.total.failure
-      };
-      return newStats;
+  // Show notification
+  const showNotification = useCallback((type, message) => {
+    // Clear any existing timeout
+    if (notificationTimerRef.current) {
+      clearTimeout(notificationTimerRef.current);
+    }
+    
+    // Set notification
+    setNotification({
+      show: true,
+      type,
+      message
     });
+    
+    // Auto-hide after 3 seconds
+    notificationTimerRef.current = setTimeout(() => {
+      setNotification(prev => ({ ...prev, show: false }));
+    }, 3000);
   }, []);
 
   const handleVerify = useCallback((isCorrect) => {
     setVerificationResult(isCorrect);
-    updateStats(captchaType, isCorrect);
-    
     if (isCorrect) {
-      alert("Verification successful!");
+      showNotification('success', 'Verification successful!');
     } else {
-      alert("Verification failed. Please try again.");
+      showNotification('error', 'Verification failed. Please try again.');
     }
     setTimeout(refreshCaptcha, 1500);
-  }, [captchaType, updateStats]);
+  }, [showNotification]);
 
   // Get a random CAPTCHA type with weighted probability based on device
   // Ensures the new type is different from the previous one
@@ -463,112 +453,26 @@ function App() {
     }
   };
 
-  // Calculate success rates for stats display
-  const calculateSuccessRate = (successCount, failureCount) => {
-    const total = successCount + failureCount;
-    if (total === 0) return 0;
-    return Math.round((successCount / total) * 100);
-  };
-
-  // Toggle stats display
-  const toggleStats = () => {
-    setShowStats(!showStats);
-  };
-
-  // Render stats section
-  const renderStats = () => {
-    const totalAttempts = stats.total.success + stats.total.failure;
-    
-    return (
-      <div className="bg-gray-800 rounded-lg p-4 mt-6 border border-gray-700">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold">CAPTCHA Statistics</h3>
-          <div className="text-sm text-gray-400">
-            Total Attempts: {totalAttempts}
-          </div>
-        </div>
-        
-        <div className="space-y-3">
-          {/* Total stats */}
-          <div className="flex justify-between items-center">
-            <div className="font-medium">Overall</div>
-            <div className="flex space-x-6">
-              <div className="flex items-center">
-                <span className="w-3 h-3 rounded-full bg-green-500 mr-2"></span>
-                <span>{stats.total.success}</span>
-              </div>
-              <div className="flex items-center">
-                <span className="w-3 h-3 rounded-full bg-red-500 mr-2"></span>
-                <span>{stats.total.failure}</span>
-              </div>
-              <div className="text-gray-400 w-16 text-right">
-                {calculateSuccessRate(stats.total.success, stats.total.failure)}%
-              </div>
-            </div>
-          </div>
-          
-          {/* Individual type stats */}
-          {CAPTCHA_TYPES.map(type => {
-            const typeStats = stats[type];
-            const typeTotalAttempts = typeStats.success + typeStats.failure;
-            if (typeTotalAttempts === 0) return null;
-            
-            return (
-              <div key={type} className="flex justify-between items-center">
-                <div className="font-medium capitalize">{type}</div>
-                <div className="flex space-x-6">
-                  <div className="flex items-center">
-                    <span className="w-3 h-3 rounded-full bg-green-500 mr-2"></span>
-                    <span>{typeStats.success}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <span className="w-3 h-3 rounded-full bg-red-500 mr-2"></span>
-                    <span>{typeStats.failure}</span>
-                  </div>
-                  <div className="text-gray-400 w-16 text-right">
-                    {calculateSuccessRate(typeStats.success, typeStats.failure)}%
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        
-        {/* Progress bars for visual representation */}
-        <div className="mt-4 space-y-2">
-          {CAPTCHA_TYPES.map(type => {
-            const typeStats = stats[type];
-            const typeTotalAttempts = typeStats.success + typeStats.failure;
-            if (typeTotalAttempts === 0) return null;
-            
-            const successRate = calculateSuccessRate(typeStats.success, typeStats.failure);
-            
-            return (
-              <div key={`bar-${type}`} className="w-full">
-                <div className="flex justify-between text-xs text-gray-500 mb-1">
-                  <span className="capitalize">{type}</span>
-                  <span>{successRate}% Success</span>
-                </div>
-                <div className="w-full bg-gray-700 rounded-full h-2">
-                  <div 
-                    className="bg-blue-600 h-2 rounded-full" 
-                    style={{ width: `${successRate}%` }}
-                  ></div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center py-8">
+    <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
       {/* Screenshot warning notification */}
       {screenshotAttempted && (
         <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-bounce">
           <p className="font-medium">Screenshot detected! This action is not allowed.</p>
+        </div>
+      )}
+      
+      {/* Custom alert notification */}
+      {notification.show && (
+        <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 px-4 py-3 rounded-lg shadow-lg z-50 flex items-center space-x-2 transition-all duration-300 ${
+          notification.type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+        }`}>
+          {notification.type === 'success' ? (
+            <CheckCircle className="w-5 h-5" />
+          ) : (
+            <XCircle className="w-5 h-5" />
+          )}
+          <p className="font-medium">{notification.message}</p>
         </div>
       )}
       
@@ -621,20 +525,6 @@ function App() {
             </>
           )}
         </div>
-
-        {/* Stats toggle button */}
-        <div className="mt-6 flex justify-center">
-          <button 
-            onClick={toggleStats}
-            className="flex items-center space-x-2 text-sm text-gray-400 hover:text-gray-300 transition-colors"
-          >
-            <BarChart2 className="w-4 h-4" />
-            <span>{showStats ? 'Hide Statistics' : 'Show Statistics'}</span>
-          </button>
-        </div>
-
-        {/* Stats section */}
-        {showStats && renderStats()}
 
         {isModalOpen && (
           <div 
