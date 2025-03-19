@@ -215,7 +215,7 @@ function App() {
   const loadDevanagariCaptcha = useCallback(() => {
     const randomDevanagari = getRandomDevanagari();
     setCurrentDevanagari(randomDevanagari);
-    setImageUrl(`/src/assets/devanagari/${randomDevanagari.name}.png`);
+    setImageUrl(`/devanagari/${randomDevanagari.name}.png`);
   }, [getRandomDevanagari]);
 
   // Show notification
