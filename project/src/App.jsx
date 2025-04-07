@@ -3,6 +3,7 @@ import { Shield, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import { ScratchCaptcha } from './components/ScratchCaptcha';
 import devanagariCodes from './assets/devanagari/codes.json';
 import { createClient } from '@supabase/supabase-js';
+//Push
 
 // Initialize Supabase client
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
