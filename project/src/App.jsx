@@ -2,7 +2,12 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Shield, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import { ScratchCaptcha } from './components/ScratchCaptcha';
 import devanagariCodes from './assets/devanagari/codes.json';
+import { createClient } from '@supabase/supabase-js';
 
+// Initialize Supabase client
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
 const CAPTCHA_TYPES = ['image', 'devanagari', 'gif', 'scratch'];
 
 const categories = [
@@ -36,16 +41,9 @@ function App() {
   const isInitialMount = useRef(true);
   const overlayRef = useRef(null);
   const notificationTimerRef = useRef(null);
-// Replace the regular state variables with these localStorage-backed versions
-const [passCount, setPassCount] = useState(() => {
-  const saved = localStorage.getItem('captchaPassCount');
-  return saved ? parseInt(saved, 10) : 0;
-});
 
-const [failCount, setFailCount] = useState(() => {
-  const saved = localStorage.getItem('captchaFailCount');
-  return saved ? parseInt(saved, 10) : 0;
-});
+const [passCount, setPassCount] = useState(0);
+const [failCount, setFailCount] = useState(0);
 
   // Detect if the device is mobile
   useEffect(() => {
@@ -576,25 +574,36 @@ const CanvasImage = ({ src, alt, className }) => {
   }, []);
 
   // Replace or modify the existing handleVerify function (around line 489)
-  const handleVerify = useCallback((isCorrect) => {
+  const handleVerify = useCallback(async (isCorrect) => {
     setVerificationResult(isCorrect);
+    
     if (isCorrect) {
-      setPassCount(prev => {
-        const newCount = prev + 1;
-        localStorage.setItem('captchaPassCount', newCount.toString());
-        return newCount;
-      });
+      setPassCount(prev => prev + 1);
       showNotification('success', 'Verification successful!');
     } else {
-      setFailCount(prev => {
-        const newCount = prev + 1;
-        localStorage.setItem('captchaFailCount', newCount.toString());
-        return newCount;
-      });
+      setFailCount(prev => prev + 1);
       showNotification('error', 'Verification failed. Please try again.');
     }
+    
+    // Log the verification attempt to Supabase
+    try {
+      const { error } = await supabase
+        .from('captcha_attempts')
+        .insert({
+          captcha_type: captchaType,
+          is_success: isCorrect,
+          user_agent: navigator.userAgent,
+          device_type: isMobile ? 'mobile' : 'desktop',
+          timestamp: new Date().toISOString()
+        });
+        
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error logging to Supabase:', error);
+    }
+    
     setTimeout(refreshCaptcha, 1500);
-  }, [showNotification]);
+  }, [captchaType, isMobile, showNotification]);
 
   // Get a random CAPTCHA type with weighted probability based on device
   // Ensures the new type is different from the previous one
@@ -873,17 +882,6 @@ const CanvasImage = ({ src, alt, className }) => {
             </>
           )}
         </div>
-
-<div className="flex justify-center space-x-4 mb-4">
-  <div className="text-center">
-    <span className="text-green-500 font-bold text-xl">{passCount}</span>
-    <p className="text-gray-400 text-xs">Passes</p>
-  </div>
-  <div className="text-center">
-    <span className="text-red-500 font-bold text-xl">{failCount}</span>
-    <p className="text-gray-400 text-xs">Failures</p>
-  </div>
-</div>
 
         {isModalOpen && (
           <div 
