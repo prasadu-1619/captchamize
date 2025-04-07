@@ -36,6 +36,16 @@ function App() {
   const isInitialMount = useRef(true);
   const overlayRef = useRef(null);
   const notificationTimerRef = useRef(null);
+// Replace the regular state variables with these localStorage-backed versions
+const [passCount, setPassCount] = useState(() => {
+  const saved = localStorage.getItem('captchaPassCount');
+  return saved ? parseInt(saved, 10) : 0;
+});
+
+const [failCount, setFailCount] = useState(() => {
+  const saved = localStorage.getItem('captchaFailCount');
+  return saved ? parseInt(saved, 10) : 0;
+});
 
   // Detect if the device is mobile
   useEffect(() => {
@@ -565,11 +575,22 @@ const CanvasImage = ({ src, alt, className }) => {
     }, 3000);
   }, []);
 
+  // Replace or modify the existing handleVerify function (around line 489)
   const handleVerify = useCallback((isCorrect) => {
     setVerificationResult(isCorrect);
     if (isCorrect) {
+      setPassCount(prev => {
+        const newCount = prev + 1;
+        localStorage.setItem('captchaPassCount', newCount.toString());
+        return newCount;
+      });
       showNotification('success', 'Verification successful!');
     } else {
+      setFailCount(prev => {
+        const newCount = prev + 1;
+        localStorage.setItem('captchaFailCount', newCount.toString());
+        return newCount;
+      });
       showNotification('error', 'Verification failed. Please try again.');
     }
     setTimeout(refreshCaptcha, 1500);
@@ -853,6 +874,17 @@ const CanvasImage = ({ src, alt, className }) => {
           )}
         </div>
 
+<div className="flex justify-center space-x-4 mb-4">
+  <div className="text-center">
+    <span className="text-green-500 font-bold text-xl">{passCount}</span>
+    <p className="text-gray-400 text-xs">Passes</p>
+  </div>
+  <div className="text-center">
+    <span className="text-red-500 font-bold text-xl">{failCount}</span>
+    <p className="text-gray-400 text-xs">Failures</p>
+  </div>
+</div>
+
         {isModalOpen && (
           <div 
             className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4"
@@ -929,6 +961,7 @@ const CanvasImage = ({ src, alt, className }) => {
               </div>
             </div>
           </div>
+
         )}
       </div>
     </div>
